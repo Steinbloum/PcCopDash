@@ -41,8 +41,31 @@ layout = dbc.Container([
                 page_action="native",
                 page_current=0,
                 page_size=20,
+                style_as_list_view=True,
+                style_data={
+                    'color': 'black',
+                    'backgroundColor': 'white'
+                },
+                style_data_conditional=[
+                    {
+                        'if': {'row_index': 'odd'},
+                        'backgroundColor': 'rgb(220, 220, 220)',
+                    },
+                    # Style for selected cell
+                    {
+                        'if': {'state': 'selected'},  # Applies to both cell and row selection
+                        'backgroundColor': 'rgba(0, 116, 217, 0.3)',  # Light blue
+                        'border': '1px solid blue'
+                    }
+                ],
+                style_header={
+                    'backgroundColor': 'rgb(210, 210, 210)',
+                    'color': 'black',
+                    'fontWeight': 'bold'
+                }
+
             ),
-        ], style={'padding': '20px', 'border': '1px solid #dee2e6', 'borderRadius': '5px', "margin":"10px"}),  # DataTable styling
+        ], style={'padding': '20px', 'border': '1px solid #dee2e6', 'borderRadius': '5px', "margin":"10px"}), 
         html.Div([
             dbc.Button("Export CSV", id="export-csv", className="mt-2", color="primary", style={"margin":"10px"}),
         ], className="d-grid gap-2 col-3 mx-auto mt-3"),  # Adjusted for button centering
@@ -56,11 +79,13 @@ layout = dbc.Container([
 
 
 @callback(
-    Output('side-pane_content', 'children'),
+    Output('side-pane-content', 'children'),
     [Input('hw-index', 'active_cell')],
     [State('hw-index', 'data')],
 )
 def display_cell_value(active_cell, rows):
+
+
     if not active_cell:
         return dbc.Card(
             "Select Hardware",
@@ -96,7 +121,6 @@ def display_cell_value(active_cell, rows):
     )
 )
 
-    # Apply the glow effect directly via the style parameter
     return dbc.Card(
         [card_title, dbc.CardBody(card_content), card_footer],
         color="light",
