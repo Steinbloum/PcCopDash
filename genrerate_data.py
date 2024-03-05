@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 import plotly.express as px
 import sqlite3
+import itertools
 
 
 @dataclass
@@ -31,6 +32,10 @@ class FakeDataGenerator:
     serial : str = lambda : f"{''.join(random.choice(string.ascii_letters).upper() for _ in range(6))}/A.0{random.randint(1,9)}"
     tech : str = lambda : f"T{random.randint(1,30)}.{random.choice(string.ascii_letters).upper()}{random.randint(1,4)}"
     rack : str = lambda : f"{random.randint(1,9)}{random.choice(string.ascii_uppercase)}{random.randint(10,85)}"
+    inspector_setup : str = lambda : random.choice([True,True,False])
+    inspections_count : int = lambda : random.choice(list(
+                                itertools.chain.from_iterable(
+                                    [[x]*y for x, y in zip(range(1,21), range(20,1,-1))])))
 
     
     def generateBaseDut(self) -> pd.DataFrame:
@@ -143,6 +148,7 @@ class FakeDataGenerator:
         families = [self.family() for n in range(3)]
         idx = []
         for id in ids:
+            inspready = self.inspector_setup()
             idx.append(
                 {
                 "id" : id,
@@ -153,8 +159,10 @@ class FakeDataGenerator:
                 "manufacturer":self.manufacturers(),
                 "serial":self.serial(),
                 "tech":self.tech(),
+                "inspectorReady":inspready,
+                "inspections_count":self.inspections_count() if inspready else 0
                 }
-                    )
+            )
 
         idx = pd.DataFrame.from_records(idx)
         print(idx.head())
@@ -165,7 +173,7 @@ class FakeDataGenerator:
 
 fdg = FakeDataGenerator()
 
-idx, data = fdg.generateHardware(200)
+idx, data = fdg.generateHardware(300)
 
 #save to db
 

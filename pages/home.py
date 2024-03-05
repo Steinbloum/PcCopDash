@@ -33,15 +33,4 @@ layout = html.Div(
     style={"height": "100vh", "display": "flex", "alignItems": "center"}  # This centers the content vertically
 )
 
-# @callback(
-#     Output('side-pane-content', 'children'),
-#     Input('url', 'pathname')
-# )
-# def update_side_panel_content(pathname):
-#     if pathname == "/home":
-#         return html.P("Home Page Content")
-#     elif pathname == "/hwindex": 
-#         return None
-#     else:
-#         return html.Div()
 

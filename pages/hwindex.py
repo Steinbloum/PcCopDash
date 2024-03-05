@@ -1,10 +1,11 @@
 import dash
-from dash import html, dcc, dash_table, callback
+from dash import html, dcc, dash_table, callback, clientside_callback
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import pandas as pd
 import sqlite3
-
+from dash.exceptions import PreventUpdate
+import json
 
 
 dash.register_page(__name__)
@@ -22,67 +23,90 @@ idx = read_table("idx")
 table = idx.to_dict('records')
 
 
+
 layout = dbc.Container([
+    html.Div(id='dummy-div', style={'display': 'none'}),
 
     dbc.Row([
-
+        # Side pane column
+        dbc.Col(html.Div([
+            html.H4(id="side-pane-content", className="p-2 text-center"), 
+        ]), width=3, style={"height": "100vh", "margin-top":"15vh"}),  
+        
+        # Main content column
         dbc.Col([
-    html.Div([
-        html.H4("Select your hardware", className="p-2 text-center"),  # Header with padding and centered text
-        html.Div([
-            dash_table.DataTable(
-                id='hw-index',
-                columns=[{"name": i.replace("_", " ").capitalize(), "id": i, "type": "numeric" if idx[i].dtype in ['int64', 'float64'] else "text"} for i in idx.columns],
-                data=table,
-                filter_action="native",
-                filter_options={"placeholder_text": "Filter"},
-                sort_action="native",
-                sort_mode="single",
-                page_action="native",
-                page_current=0,
-                page_size=20,
-                style_as_list_view=True,
-                style_data={
-                    'color': 'black',
-                    'backgroundColor': 'white'
-                },
-                style_data_conditional=[
-                    {
-                        'if': {'row_index': 'odd'},
-                        'backgroundColor': 'rgb(220, 220, 220)',
-                    },
-                    # Style for selected cell
-                    {
-                        'if': {'state': 'selected'},  # Applies to both cell and row selection
-                        'backgroundColor': 'rgba(0, 116, 217, 0.3)',  # Light blue
-                        'border': '1px solid blue'
-                    }
-                ],
-                style_header={
-                    'backgroundColor': 'rgb(210, 210, 210)',
-                    'color': 'black',
-                    'fontWeight': 'bold'
-                }
-
-            ),
-        ], style={'padding': '20px', 'border': '1px solid #dee2e6', 'borderRadius': '5px', "margin":"10px"}), 
-        html.Div([
-            dbc.Button("Export CSV", id="export-csv", className="mt-2", color="primary", style={"margin":"10px"}),
-        ], className="d-grid gap-2 col-3 mx-auto mt-3"),  # Adjusted for button centering
-    ], style={  "color":"secondary",
-                'boxShadow': '0 0 8px rgba(0, 14, 111, 0.8)',
-                "margin":"20px",
-                "border-radius":"5px"}),
-], width=12),
+            html.Div([
+                html.H4("Select your hardware", className="p-2 text-center"),
+                html.Div([
+                    dash_table.DataTable(
+                        id='hw-index',
+                        columns=[{"name": i.replace("_", " ").capitalize(), "id": i, "type": "numeric" 
+                                  if idx[i].dtype in ['int64', 'float64'] 
+                                  else "text"} 
+                                    for i in [x for x in idx.columns if not x.lower() in ["inspectorready", "inspections_count"]]],
+                        data=table,
+                        filter_action="native",
+                        filter_options={"placeholder_text": "Filter"},
+                        sort_action="native",
+                        sort_mode="single",
+                        page_action="native",
+                        page_current=0,
+                        page_size=20,
+                        style_as_list_view=True,
+                        style_data={
+                            'color': 'black',
+                            'backgroundColor': 'white'
+                        },
+                        style_data_conditional=[
+                            {
+                                'if': {'row_index': 'odd'},
+                                'backgroundColor': 'rgb(220, 220, 220)',
+                            },
+                            {
+                                'if': {'state': 'selected'},
+                                'backgroundColor': 'rgba(0, 0, 0, 0)',
+                                'border': '1px solid blue'
+                            }
+                        ],
+                        style_header={
+                            'backgroundColor': 'rgb(210, 210, 210)',
+                            'color': 'black',
+                            'fontWeight': 'bold'
+                        },
+                    ),
+                ], style={'padding': '20px', 'border': '1px solid #dee2e6', 'borderRadius': '5px', "margin":"10px"}), 
+                html.Div([
+                    dbc.Button("Export CSV", id="export-csv", className="mt-2", color="primary", style={"margin":"10px"}),
+                ], className="d-grid gap-2 col-3 mx-auto mt-3")
+            ],className="justify-content-center", style={  "color":"secondary",
+                        'boxShadow': '0 0 8px rgba(0, 14, 111, 0.8)',
+                        "margin":"20px",
+                        "borderRadius":"5px",
+                        }),
+                        
+        ], width=9), 
     ]),
 ], fluid=True)
 
+clientside_callback(
+    """
+    function(n_clicks) {
+        if (n_clicks > 0) {
+            window.location.pathname = "/pointmap";
+            return "";  // Return an empty string or any dummy value since Dash expects a return for clientside callbacks
+        }
+    }
+    """,
+    Output('dummy-div', 'children'),  # Change to a dummy div that does nothing.
+    Input('view-map-button', 'n_clicks'),
+)
 
 @callback(
-    Output('side-pane-content', 'children'),
+    [Output('side-pane-content', 'children'),
+     Output("selected-hardware", "data")],
     [Input('hw-index', 'active_cell')],
     [State('hw-index', 'data')],
-)
+    )
 def display_cell_value(active_cell, rows):
 
 
@@ -95,16 +119,18 @@ def display_cell_value(active_cell, rows):
             style={
                 'boxShadow': '0 0 8px rgba(0, 14, 111, 0.8)',  # Glow effect
             }
-        )
+        ), {}
 
     row = active_cell['row']
     selected_row_data = rows[row]
+    dump = json.dumps(selected_row_data)
+    print(f"{dump} dump")
 
     card_content = generate_card_content(selected_row_data)
 
-    # Center the card title
+
     card_title = dbc.CardHeader(
-        f"Hardware {selected_row_data.get('id', 'N/A')}",
+        html.H4(f"Hardware {selected_row_data.get('id', 'N/A')}", className="text-center", style={'fontWeight': 'bold'}),
         className="text-center"
     )
 
@@ -118,6 +144,7 @@ def display_cell_value(active_cell, rows):
         ),
         justify="center",  # This centers the Row, should the Col not take full width
         className="mt-2",  # Adds top margin for spacing
+        
     )
 )
 
@@ -125,38 +152,48 @@ def display_cell_value(active_cell, rows):
         [card_title, dbc.CardBody(card_content), card_footer],
         color="light",
         inverse=False,
-        style={
-            'boxShadow': '0 0 8px rgba(0, 14, 111, 0.8)',  # Glow effect
-        }
-    )
-
+        style={'boxShadow': '0 0 8px rgba(0, 14, 111, 0.8)'}),dump
 
 
 def generate_card_content(data):
-    # Define the attributes to include
+    print(data)
     attributes_to_include = ['family', 'rack', 'tech', 'dut_count']
-    
-    # Filter and prepare the content
     card_content = []
+
+    # Generate attribute rows
     for key in attributes_to_include:
-        # Check if key exists in data to avoid KeyError
         if key in data:
-            # Format the attribute name
             formatted_key = key.replace('_', ' ').capitalize()
             value = data[key]
-            
-            # Add the formatted attribute name and value to the card content
+
             card_content.append(
                 dbc.Row(
-                    dbc.Col(html.Div([html.B(f"{formatted_key}: "), f"{value}"]),
-                            width={"size": 6, "offset": 3}),
-                    className="text-center"
+                    dbc.Col(html.Div([
+                        html.B(f"{formatted_key}: ", style={'fontSize': '0.65em'}),
+                        html.Span(f"{value}", style={'fontSize': '0.65em'})
+                    ]),
+                    width="auto", className="mx-auto"),
+                    className="justify-content-center",
                 )
             )
     
+    # Check conditions for badges and append accordingly
+    if "inspectorReady" in data and data["inspectorReady"]:
+        inspector_ready_badge = html.H6([dbc.Badge("Inspector Ready", color="success", className="me-1", pill=True)])
+        card_content.append(dbc.Row(dbc.Col(inspector_ready_badge, width="auto"), className="justify-content-center"))
+    else:
+        inspector_not_ready_badge = html.H6([dbc.Badge("Inspector Ready", color="danger", className="me-1", pill=True)])
+        card_content.append(dbc.Row(dbc.Col(inspector_not_ready_badge, width="auto"), className="justify-content-center"))
+
+    if "inspections_count" in data and data["inspections_count"] > 0:
+        inspections_count_badge = html.H6([dbc.Badge("Results", color="success", className="me-1", pill=True)])
+        card_content.append(dbc.Row(dbc.Col(inspections_count_badge, width="auto"), className="justify-content-center"))
+    else:
+        inspections_count_badge_neg = html.H6([dbc.Badge("Results", color="danger", className="me-1", pill=True)])
+        card_content.append(dbc.Row(dbc.Col(inspections_count_badge_neg, width="auto"), className="justify-content-center"))
     return card_content
 
-from dash.exceptions import PreventUpdate
+
 
 @callback(
     Output("download-dataframe-csv", "data"),
