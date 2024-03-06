@@ -1,11 +1,11 @@
 import dash
-from dash import html, dcc, dash_table, callback, clientside_callback
+from dash import html, dcc, dash_table, callback
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import pandas as pd
 import sqlite3
 from dash.exceptions import PreventUpdate
-import json
+
 
 
 dash.register_page(__name__)
@@ -25,8 +25,8 @@ table = idx.to_dict('records')
 
 
 layout = dbc.Container([
-    html.Div(id='dummy-div', style={'display': 'none'}),
-
+    dcc.Store(id='temp-data'),
+    dcc.Location(id='url', refresh=False),
     dbc.Row([
         # Side pane column
         dbc.Col(html.Div([
@@ -46,7 +46,7 @@ layout = dbc.Container([
                                     for i in [x for x in idx.columns if not x.lower() in ["inspectorready", "inspections_count"]]],
                         data=table,
                         filter_action="native",
-                        filter_options={"placeholder_text": "Filter"},
+                        filter_options={"placeholder_text": ""},
                         sort_action="native",
                         sort_mode="single",
                         page_action="native",
@@ -59,8 +59,12 @@ layout = dbc.Container([
                         },
                         style_data_conditional=[
                             {
+                                'if': {'row_index': 'even'},
+                                'backgroundColor': 'rgb(207, 204, 204)',
+                            },
+                            {
                                 'if': {'row_index': 'odd'},
-                                'backgroundColor': 'rgb(220, 220, 220)',
+                                'backgroundColor': 'rgb(194, 194, 194)',
                             },
                             {
                                 'if': {'state': 'selected'},
@@ -73,14 +77,19 @@ layout = dbc.Container([
                             'color': 'black',
                             'fontWeight': 'bold'
                         },
+                        style_filter={  # Add this property to your DataTable
+                            'backgroundColor': 'rgb(230, 230, 230)',  # Example filter cell background color
+                            'color': 'black',  # Text color for the filter cell
+                            'fontWeight': 'bold',  # Make filter text bold
+                        },
                     ),
-                ], style={'padding': '20px', 'border': '1px solid #dee2e6', 'borderRadius': '5px', "margin":"10px"}), 
+                ], style={'padding': '15px', 'border': '1px solid #dee2e6', 'borderRadius': '5px', "margin":"10px"}), 
                 html.Div([
                     dbc.Button("Export CSV", id="export-csv", className="mt-2", color="primary", style={"margin":"10px"}),
                 ], className="d-grid gap-2 col-3 mx-auto mt-3")
             ],className="justify-content-center", style={  "color":"secondary",
-                        'boxShadow': '0 0 8px rgba(0, 14, 111, 0.8)',
-                        "margin":"20px",
+                        'boxShadow': '0 0 15px rgba(0, 14, 111, 0.8)',
+                        "margin":"15px",
                         "borderRadius":"5px",
                         }),
                         
@@ -88,72 +97,54 @@ layout = dbc.Container([
     ]),
 ], fluid=True)
 
-clientside_callback(
-    """
-    function(n_clicks) {
-        if (n_clicks > 0) {
-            window.location.pathname = "/pointmap";
-            return "";  // Return an empty string or any dummy value since Dash expects a return for clientside callbacks
-        }
-    }
-    """,
-    Output('dummy-div', 'children'),  # Change to a dummy div that does nothing.
-    Input('view-map-button', 'n_clicks'),
-)
+
 
 @callback(
-    [Output('side-pane-content', 'children'),
-     Output("selected-hardware", "data")],
+    [Output('side-pane-content', 'children'),Output('selected-hardware', 'data')],
     [Input('hw-index', 'active_cell')],
     [State('hw-index', 'data')],
     )
+
 def display_cell_value(active_cell, rows):
-
-
     if not active_cell:
+        print("no active cell")
         return dbc.Card(
             "Select Hardware",
             color="light",
             inverse=False,
             body=True,
             style={
-                'boxShadow': '0 0 8px rgba(0, 14, 111, 0.8)',  # Glow effect
+                'boxShadow': '0 0 15px rgba(0, 14, 111, 0.8)',  # Glow effect
             }
-        ), {}
+        ), "NO Active Cell"
 
     row = active_cell['row']
     selected_row_data = rows[row]
-    dump = json.dumps(selected_row_data)
+    dump = selected_row_data
     print(f"{dump} dump")
 
     card_content = generate_card_content(selected_row_data)
-
-
     card_title = dbc.CardHeader(
         html.H4(f"Hardware {selected_row_data.get('id', 'N/A')}", className="text-center", style={'fontWeight': 'bold'}),
         className="text-center"
     )
-
-    # Center the "View Map" button in the card footer
     card_footer = dbc.CardFooter(
     dbc.Row(
         dbc.Col(
-            dbc.Button("View Map", id="view-map-button", color="primary", className="mx-auto", style={"display": "block"}),
+            dbc.Button("View Map", id="view-map-button", href="/pointmap" ,color="primary", className="mx-auto", style={"display": "block"}, outline=False),
             className="text-center",  # Ensures the column content is centered
             width=12,
         ),
         justify="center",  # This centers the Row, should the Col not take full width
         className="mt-2",  # Adds top margin for spacing
         
-    )
-)
+    ))
 
     return dbc.Card(
         [card_title, dbc.CardBody(card_content), card_footer],
         color="light",
         inverse=False,
-        style={'boxShadow': '0 0 8px rgba(0, 14, 111, 0.8)'}),dump
-
+        style={'boxShadow': '0 0 15px rgba(0, 14, 111, 0.8)'}),selected_row_data
 
 def generate_card_content(data):
     print(data)
@@ -193,8 +184,6 @@ def generate_card_content(data):
         card_content.append(dbc.Row(dbc.Col(inspections_count_badge_neg, width="auto"), className="justify-content-center"))
     return card_content
 
-
-
 @callback(
     Output("download-dataframe-csv", "data"),
     [Input("export-csv", "n_clicks")],
@@ -209,5 +198,4 @@ def export_csv(n_clicks, filtered_data):
 
     # Convert the DataFrame to a CSV and trigger the download
     return dcc.send_data_frame(filtered_df.to_csv, filename="filtered_hardware_data.csv", index=False)
-
 
