@@ -1,2 +1,4 @@
 Layout : 
 try to switch witdth but tbale gets out of layout
+
+SERIOUS ISSUE HARDWARE DATA NOT RETURNIG GOOD VALUE

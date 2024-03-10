@@ -12,20 +12,26 @@ dash.register_page(__name__)
 layout = html.Div(
     dbc.Container(
         dbc.Col(
+            
         [
             dbc.Row(
                 [dcc.Location(id="url", refresh=False),
                 dbc.Col(
-                html.H1("Probecard Copilot", className="text-center"),
+                    
+                    html.H1("Tip Detective", className="text-center"),
                     width=12
                 )
             ]),
-            dbc.Row(
+            dbc.Row([
                 dbc.Col(
-                    html.P("Your new Probecard debug best friend !", className="text-center"),
+                    html.P("Custom Mitutuyo QuickVision Programmer", className="text-center"),
+                    width=12
+                ),
+                dbc.Col(
+                    html.P("Coming soon...Stay Tuned", className="text-center"),
                     width=12
                 )
-            )
+            ])
         ]),
         fluid=True,
         className="py-3",  # Add some padding around the container

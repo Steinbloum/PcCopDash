@@ -16,13 +16,13 @@ layout = html.Div(
             dbc.Row(
                 [dcc.Location(id="url", refresh=False),
                 dbc.Col(
-                html.H1("Probecard Copilot", className="text-center"),
+                    html.H1("TDR Test Compiler", className="text-center"),
                     width=12
                 )
             ]),
             dbc.Row(
                 dbc.Col(
-                    html.P("Your new Probecard debug best friend !", className="text-center"),
+                    html.P("Migration in progress...", className="text-center"),
                     width=12
                 )
             )
