@@ -1,6 +1,6 @@
 
 import dash_bootstrap_components as dbc
-from dash import dcc, html, Input, Output, State, callback, ALL
+from dash import dcc, html, Input, Output, State, callback, ALL, dash_table
 from dash.exceptions import PreventUpdate
 import dash
 import plotly.graph_objects as go
@@ -31,18 +31,26 @@ layout = dbc.Container([
         dcc.Store(id="selected-data"),
         dcc.Store(id="map"),
         dbc.Col(
-            html.Div(
-                    [dbc.Card(id="filter-card", style={'margin-top' : '30px', "padding":'5px', 'backgroundColor': '#D3D3D3', 'border-width':'0px'}),
-                    dbc.Card(id="buttons-card",style={'margin-top' : '10px', "padding":'5px', 'backgroundColor': '#D3D3D3', 'border-width':'0px'}),
-                    dbc.Card(id="selection-card", style={'margin-top' : '10px', "padding":'5px', 'backgroundColor': '#D3D3D3', 'border-width':'0px'}),]
-            ),width=3),
+            html.Div([
+                dbc.Card(id="filter-card", style={'margin-top': '30px', "padding": '5px', 'backgroundColor': '#D3D3D3', 'border-width': '0px'}),
+                dbc.Card(id="buttons-card", style={'margin-top': '10px', "padding": '5px', 'backgroundColor': '#D3D3D3', 'border-width': '0px'}),
+                dbc.Card(id="selection-card", style={'margin-top': '10px', "padding": '5px', 'backgroundColor': '#D3D3D3', 'border-width': '0px'}),
+            ]),
+            width=3
+        ),
         dbc.Col(
             html.Div([
-                dcc.Graph(id='scatter-plot', style={'height': '100vh'})
-                ]), 
-            width=9),    
-                ]),])
-
+                dcc.Tabs(id="tabs", children=[
+                    dcc.Tab(label='Scatter Plot', children=[
+                        dcc.Graph(id='scatter-plot', style={'height': '100vh'})
+                    ]),
+                    dcc.Tab(label='Selected Data', id='selection-table'),
+                ]),
+            ]),
+            width=9
+        ),    
+    ]),
+])
 
 
 @callback(
@@ -374,6 +382,27 @@ def update_click_data(clickData,nclicks, stored_data,filtered_data):
         return [None, None]
     return [ls, ls]
 
+@callback(
+    Output('selection-table', 'children'),
+    Input('selected-data', 'data'),
+    State('map', 'data'),
+)
+def update_table(selected_data, data):
+    if selected_data is None:
+        # Return empty table if no data is selected
+        return []
+
+    else:
+        df = pd.DataFrame.from_records(data)
+
+        selected_data = df.iloc[selected_data].to_dict('records')
+        return dash_table.DataTable(
+                        id='table',
+                        data=selected_data,
+        )
+    
+
+    
 
 
 def read_table(name):
